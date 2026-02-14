@@ -44,13 +44,13 @@
     });
   }
 
-  function updateOverlayContent(fps, width, height) {
+  function updateOverlayContent(fps, width, height, isStopped = false) {
     if (!overlay) return;
 
     const fpsEl = overlay.querySelector('.video-fps-value');
     const resEl = overlay.querySelector('.video-fps-resolution');
 
-    if (fpsEl) fpsEl.textContent = fps !== null ? fps.toFixed(1) : '--';
+    if (fpsEl) fpsEl.textContent = isStopped ? '停止' : (fps !== null ? fps.toFixed(1) : '--');
     if (resEl) resEl.textContent = width && height ? `${width}×${height}` : '--';
   }
 
@@ -150,6 +150,11 @@
       if (tracker.rafId != null) {
         cancelAnimationFrame(tracker.rafId);
         tracker.rafId = null;
+      }
+
+      const anyPlaying = [...videoTrackers.keys()].some((v) => !v.paused && !v.ended);
+      if (!anyPlaying && overlay && settings.enabled) {
+        updateOverlayContent(null, video.videoWidth || 0, video.videoHeight || 0, true);
       }
     }
 
