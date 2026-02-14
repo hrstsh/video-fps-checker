@@ -29,7 +29,7 @@
     overlay = document.createElement('div');
     overlay.id = 'video-fps-overlay';
     overlay.className = 'video-fps-overlay';
-    overlay.innerHTML = '<div class="video-fps-content"><span class="video-fps-label">FPS: </span><span class="video-fps-value">--</span><br><span class="video-fps-label">解像度: </span><span class="video-fps-resolution">--</span></div>';
+    overlay.innerHTML = '<div class="video-fps-content"><span class="video-fps-label">FPS: </span><span class="video-fps-value">--</span><br><span class="video-fps-label">解像度: </span><span class="video-fps-resolution">--</span><br><span class="video-fps-label">ドロップ: </span><span class="video-fps-dropped">--</span></div>';
     document.body.appendChild(overlay);
     return overlay;
   }
@@ -44,14 +44,16 @@
     });
   }
 
-  function updateOverlayContent(fps, width, height, isStopped = false) {
+  function updateOverlayContent(fps, width, height, isStopped = false, droppedFrames = null) {
     if (!overlay) return;
 
     const fpsEl = overlay.querySelector('.video-fps-value');
     const resEl = overlay.querySelector('.video-fps-resolution');
+    const droppedEl = overlay.querySelector('.video-fps-dropped');
 
     if (fpsEl) fpsEl.textContent = isStopped ? '停止' : (fps !== null ? fps.toFixed(1) : '--');
     if (resEl) resEl.textContent = width && height ? `${width}×${height}` : '--';
+    if (droppedEl) droppedEl.textContent = droppedFrames !== null ? String(droppedFrames) : '--';
   }
 
   const FPS_UPDATE_INTERVAL_MS = 500;  // 表示更新間隔
@@ -66,7 +68,9 @@
       frameCount: 0,
       windowStartTime: 0,
       windowStartFrames: 0,
+      windowStartDropped: 0,
       fps: 0,
+      droppedPerSecond: 0,
       lastDisplayUpdate: 0,
       callbackId: null,
       rafId: null
@@ -77,6 +81,11 @@
       return Math.max(FPS_DISPLAY_MIN, Math.min(FPS_DISPLAY_MAX, Math.round(value * 10) / 10));
     }
 
+    function getDroppedFrames() {
+      const quality = video.getVideoPlaybackQuality?.();
+      return quality?.droppedVideoFrames ?? null;
+    }
+
     function updateDisplay() {
       if (!overlay || !settings.enabled) return;
       const now = performance.now();
@@ -85,20 +94,26 @@
 
       const width = video.videoWidth || 0;
       const height = video.videoHeight || 0;
-      updateOverlayContent(tracker.fps, width, height);
+      updateOverlayContent(tracker.fps, width, height, false, tracker.droppedPerSecond);
     }
 
     function measureFPSWithRVFC(now, metadata) {
       const frames = metadata.presentedFrames;
+      const dropped = getDroppedFrames();
       if (tracker.windowStartTime === 0) {
         tracker.windowStartTime = now;
         tracker.windowStartFrames = frames;
+        tracker.windowStartDropped = dropped ?? 0;
       }
       const elapsed = (now - tracker.windowStartTime) / 1000;
       if (elapsed >= FPS_MEASURE_WINDOW_MS / 1000) {
         const deltaFrames = frames - tracker.windowStartFrames;
         if (deltaFrames >= 0 && elapsed > 0) {
           tracker.fps = clampFPS(deltaFrames / elapsed);
+        }
+        if (dropped !== null) {
+          tracker.droppedPerSecond = Math.max(0, dropped - tracker.windowStartDropped);
+          tracker.windowStartDropped = dropped;
         }
         tracker.windowStartTime = now;
         tracker.windowStartFrames = frames;
@@ -111,16 +126,22 @@
       const quality = video.getVideoPlaybackQuality?.();
       const now = performance.now();
       const frames = quality?.totalVideoFrames ?? 0;
+      const dropped = quality?.droppedVideoFrames ?? null;
 
       if (tracker.windowStartTime === 0) {
         tracker.windowStartTime = now;
         tracker.windowStartFrames = frames;
+        tracker.windowStartDropped = dropped ?? 0;
       }
       const elapsed = (now - tracker.windowStartTime) / 1000;
       if (elapsed >= FPS_MEASURE_WINDOW_MS / 1000 && frames >= tracker.windowStartFrames) {
         const deltaFrames = frames - tracker.windowStartFrames;
         if (elapsed > 0) {
           tracker.fps = clampFPS(deltaFrames / elapsed);
+        }
+        if (dropped !== null) {
+          tracker.droppedPerSecond = Math.max(0, dropped - tracker.windowStartDropped);
+          tracker.windowStartDropped = dropped;
         }
         tracker.windowStartTime = now;
         tracker.windowStartFrames = frames;
@@ -134,6 +155,7 @@
 
       tracker.windowStartTime = 0;
       tracker.windowStartFrames = 0;
+      tracker.windowStartDropped = 0;
 
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         tracker.callbackId = video.requestVideoFrameCallback(measureFPSWithRVFC);
@@ -154,7 +176,7 @@
 
       const anyPlaying = [...videoTrackers.keys()].some((v) => !v.paused && !v.ended);
       if (!anyPlaying && overlay && settings.enabled) {
-        updateOverlayContent(null, video.videoWidth || 0, video.videoHeight || 0, true);
+        updateOverlayContent(null, video.videoWidth || 0, video.videoHeight || 0, true, tracker.droppedPerSecond);
       }
     }
 
