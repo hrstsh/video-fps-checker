@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 480px;
+      margin: 40px auto;
+      padding: 24px;
+      background: #f5f5f5;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 24px;
+    }
+    .field {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: white;
+    }
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    input[type="color"] {
+      width: 48px;
+      height: 36px;
+      padding: 2px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+    .preview {
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 24px;
+      padding: 10px 24px;
+      font-size: 14px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>Video FPS & Resolution 設定</h1>
+  <div class="field">
+    <label for="position">表示位置</label>
+    <select id="position">
+      <option value="top-left">左上</option>
+      <option value="top-right">右上（デフォルト）</option>
+      <option value="bottom-left">左下</option>
+      <option value="bottom-right">右下</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="textColor">文字色</label>
+    <div class="color-row">
+      <input type="color" id="colorPicker" value="#00ff00">
+      <input type="text" id="textColor" value="#00ff00" placeholder="#00ff00">
+    </div>
+    <div class="preview" id="preview">FPS: 30.0<br>解像度: 1920×1080</div>
+  </div>
+  <button id="save">保存</button>
+  <script src="options.js"></script>
+</body>
+</html>

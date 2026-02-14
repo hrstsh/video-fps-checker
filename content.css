@@ -1,0 +1,27 @@
+.video-fps-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.video-fps-content {
+  white-space: nowrap;
+}
+
+.video-fps-label {
+  opacity: 0.9;
+}
+
+.video-fps-value,
+.video-fps-resolution {
+  font-weight: bold;
+}
