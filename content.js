@@ -54,19 +54,34 @@
     if (resEl) resEl.textContent = width && height ? `${width}×${height}` : '--';
   }
 
+  const FPS_UPDATE_INTERVAL_MS = 500;  // 表示更新間隔
+  const FPS_MEASURE_WINDOW_MS = 1000;  // FPS計測の集計窓
+  const FPS_DISPLAY_MIN = 1;
+  const FPS_DISPLAY_MAX = 240;
+
   function trackVideo(video) {
     if (videoTrackers.has(video)) return;
 
     const tracker = {
       frameCount: 0,
-      lastTime: 0,
+      windowStartTime: 0,
+      windowStartFrames: 0,
       fps: 0,
+      lastDisplayUpdate: 0,
       callbackId: null,
       rafId: null
     };
 
+    function clampFPS(value) {
+      if (value == null || !isFinite(value) || value < 0) return null;
+      return Math.max(FPS_DISPLAY_MIN, Math.min(FPS_DISPLAY_MAX, Math.round(value * 10) / 10));
+    }
+
     function updateDisplay() {
       if (!overlay || !settings.enabled) return;
+      const now = performance.now();
+      if (now - tracker.lastDisplayUpdate < FPS_UPDATE_INTERVAL_MS) return;
+      tracker.lastDisplayUpdate = now;
 
       const width = video.videoWidth || 0;
       const height = video.videoHeight || 0;
@@ -74,15 +89,20 @@
     }
 
     function measureFPSWithRVFC(now, metadata) {
-      if (tracker.lastTime > 0) {
-        const deltaTime = (now - tracker.lastTime) / 1000;
-        const deltaFrames = metadata.presentedFrames - tracker.frameCount;
-        if (deltaTime > 0 && deltaFrames > 0) {
-          tracker.fps = deltaFrames / deltaTime;
-        }
+      const frames = metadata.presentedFrames;
+      if (tracker.windowStartTime === 0) {
+        tracker.windowStartTime = now;
+        tracker.windowStartFrames = frames;
       }
-      tracker.lastTime = now;
-      tracker.frameCount = metadata.presentedFrames;
+      const elapsed = (now - tracker.windowStartTime) / 1000;
+      if (elapsed >= FPS_MEASURE_WINDOW_MS / 1000) {
+        const deltaFrames = frames - tracker.windowStartFrames;
+        if (deltaFrames >= 0 && elapsed > 0) {
+          tracker.fps = clampFPS(deltaFrames / elapsed);
+        }
+        tracker.windowStartTime = now;
+        tracker.windowStartFrames = frames;
+      }
       updateDisplay();
       tracker.callbackId = video.requestVideoFrameCallback(measureFPSWithRVFC);
     }
@@ -90,22 +110,30 @@
     function measureFPSWithRAF() {
       const quality = video.getVideoPlaybackQuality?.();
       const now = performance.now();
+      const frames = quality?.totalVideoFrames ?? 0;
 
-      if (quality && tracker.lastTime > 0) {
-        const deltaTime = (now - tracker.lastTime) / 1000;
-        const deltaFrames = quality.totalVideoFrames - tracker.frameCount;
-        if (deltaTime > 0.1 && deltaFrames > 0) {
-          tracker.fps = deltaFrames / deltaTime;
-        }
+      if (tracker.windowStartTime === 0) {
+        tracker.windowStartTime = now;
+        tracker.windowStartFrames = frames;
       }
-      tracker.lastTime = now;
-      tracker.frameCount = quality?.totalVideoFrames ?? 0;
+      const elapsed = (now - tracker.windowStartTime) / 1000;
+      if (elapsed >= FPS_MEASURE_WINDOW_MS / 1000 && frames >= tracker.windowStartFrames) {
+        const deltaFrames = frames - tracker.windowStartFrames;
+        if (elapsed > 0) {
+          tracker.fps = clampFPS(deltaFrames / elapsed);
+        }
+        tracker.windowStartTime = now;
+        tracker.windowStartFrames = frames;
+      }
       updateDisplay();
       tracker.rafId = requestAnimationFrame(measureFPSWithRAF);
     }
 
     function startTracking() {
       if (!video.videoWidth && !video.videoHeight) return;
+
+      tracker.windowStartTime = 0;
+      tracker.windowStartFrames = 0;
 
       if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
         tracker.callbackId = video.requestVideoFrameCallback(measureFPSWithRVFC);
